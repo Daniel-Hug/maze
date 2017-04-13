@@ -2,10 +2,14 @@
 var Game = function(options) {
 	// options will override the following defaults if set
 	var offset = extend(options, extend({
-		// Initial game state defaults
-		score: 0,
-		finished: false,
-		player: {},
+		player: {
+			pos: {
+				top: 0,
+				left: 0,
+				bottom: 24,
+				right: 24
+			}
+		},
 		step: 2
 	}, this));
 
@@ -31,23 +35,23 @@ Game.prototype.insideGameArea = function(offset) {
 // Checks if rectangle a overlaps rectangle b
 Game.prototype.overlaps = function(a, b) {
 	// no horizontal overlap
-    if (a.left >= b.right || b.left >= a.right) return false;
- 
+	if (a.left >= b.right || b.left >= a.right) return false;
+
 	// no vertical overlap
-    if (a.top >= b.bottom || b.top >= a.bottom) return false;
- 
-    return true;
+	if (a.top >= b.bottom || b.top >= a.bottom) return false;
+
+	return true;
 };
 
 // Checks if rectangle a touches rectangle b
 Game.prototype.touches = function(a, b) {
 	// has horizontal gap
-    if (a.left > b.right || b.left > a.right) return false;
- 
+	if (a.left > b.right || b.left > a.right) return false;
+
 	// has vertical gap
-    if (a.top > b.bottom || b.top > a.bottom) return false;
- 
-    return true;
+	if (a.top > b.bottom || b.top > a.bottom) return false;
+
+	return true;
 };
 
 Game.prototype.getNewPlayerPosition = (function() {
@@ -104,8 +108,8 @@ Game.prototype.isValidPlayerPosition = function(sidePositions) {
 	if ([].some.call(this.solids, function(solidPos, i) {
 		return this.overlaps(sidePositions, solidPos);
 	}, this)) return false;
- 
-    return true;
+
+	return true;
 };
 
 // Move one pixel for each direction and check if move is valid.
@@ -130,5 +134,7 @@ Game.prototype.movTick = function() {
 		}
 	}, t);
 
+	// update player position
 	this.player.move.call(this, newPos);
+	this.player.pos = newPos;
 };

@@ -25,6 +25,8 @@ var game = (function() {
 
 	// Create game passing initial state
 	return new Game({
+		score: 0,
+		finished: false,
 		viewport: {
 			width:  parseInt(cs.width,  10),
 			height: parseInt(cs.height, 10)
@@ -34,10 +36,8 @@ var game = (function() {
 		player: {
 			pos: getOffset(playerEl),
 			move: function(sidePositions) {
-				var ps = playerEl.style;
-				ps.left = sidePositions.left + 'px';
-				ps.top  = sidePositions.top + 'px';
-				this.player.pos = sidePositions;
+				playerEl.style.left = sidePositions.left + 'px';
+				playerEl.style.top  = sidePositions.top + 'px';
 			}
 		},
 
