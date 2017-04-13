@@ -29,17 +29,6 @@ var Game = function(options) {
 };
 
 
-// Update score:
-Game.prototype.setScore = function(method, amount) {
-	if (method === 'add') this.score += amount;
-	else                  this.score -= amount;
-
-	[].forEach.call(this.scoreEls, function(scoreEl) {
-		scoreEl.textContent = this.score;
-	}, this);
-};
-
-
 // Checks if an element is inside its viewport:
 Game.prototype.insideGameArea = function(offset) {
 	return !(
@@ -148,18 +137,14 @@ Game.prototype.movTick = function() {
 	// ensure valid player position
 	if (!this.isValidPlayerPosition(newPos)) return;
 
-	// Finish-line collision:
-	if (this.touches(newPos, t.solids[this.finishI]) && !this.finished) {
-		this.setScore('add', 250);
-		this.finished = true;
-	}
-
-	// Coin collision:
-	[].forEach.call(t.coins, function(coinPos, i) {
-		if (this.touches(newPos, coinPos)) {
-			this.setScore('add', 50);
-			delete this.coins[i];
-			this.coinEls[i].parentNode.removeChild(this.coinEls[i]);
+	// Touchable collisions:
+	Object.keys(this.touchables).forEach(function(name) {
+		var touchable = this.touchables[name];
+		var positions = touchable.positions;
+		for (var i = 0; i < positions.length; i++) {
+			if (this.touches(newPos, positions[i])) {
+				touchable.onTouch.call(this, positions[i], i);
+			}
 		}
 	}, t);
 
@@ -175,8 +160,14 @@ var game = (function() {
 
 	// Grab necessary game elements:
 	var solidEls  = qsa('.solid',  viewportEl);
-	var coinEls   = qsa('.coin',   viewportEl);
+	var scoreEls = qsa('.score',  viewportEl);
 	var playerEl =  qs(".player", viewportEl);
+
+	// Use array to enable easy removal with splice
+	var coinEls   = [].slice.call(qsa('.coin',   viewportEl));
+
+	var solids = [].map.call(solidEls, getOffset);
+	var finishI = [].indexOf.call(solidEls, qs(".finish", viewportEl));
 
 	// Create game passing initial state
 	return new Game({
@@ -185,22 +176,42 @@ var game = (function() {
 			height: parseInt(cs.height, 10)
 		},
 
-		// Positions of solids:
-		solids: [].map.call(solidEls, getOffset),
-
-		// Coins and their positions:
-		coinEls: coinEls,
-		coins: [].map.call(coinEls, getOffset),
-
 		// Player and their position:
 		player: {
 			el: playerEl,
 			pos: getOffset(playerEl)
 		},
 
-		scoreEls: qsa('.score',  viewportEl),
+		// Positions of solids:
+		solids: solids,
 
-		// index of finish line among the solids
-		finishI: [].indexOf.call(solidEls, qs(".finish", viewportEl))
+		touchables: {
+			coin: {
+				positions: [].map.call(coinEls, getOffset),
+				onTouch: function(pos, i) {
+					this.setScore('add', 50);
+					this.touchables.coin.positions.splice(i, 1);
+					coinEls[i].parentNode.removeChild(coinEls[i]);
+					coinEls.splice(i, 1);
+				}
+			},
+			finish: {
+				positions: [solids[finishI]],
+				onTouch: function() {
+					if (this.finished) return;
+					this.setScore('add', 250);
+					this.finished = true;
+				}
+			}
+		},
+
+		setScore: function(method, amount) {
+			if (method === 'add') this.score += amount;
+			else                  this.score -= amount;
+
+			[].forEach.call(scoreEls, function(scoreEl) {
+				scoreEl.textContent = this.score;
+			}, this);
+		}
 	});
 })();
