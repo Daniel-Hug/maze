@@ -7,6 +7,15 @@ function qsa(selector, scope) {
 }
 
 
+function extend(source, destination) {
+	for (var key in source) {
+		if (source.hasOwnProperty(key)) {
+			destination[key] = source[key];
+		}
+	}
+	return destination;
+}
+
 
 function createInterval(fn, delay, thisVal /*, argumentToPass1, argumentToPass2, etc. */) {
 	var argsToPass = Array.prototype.slice.call(arguments, 3),

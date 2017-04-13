@@ -10,37 +10,15 @@ function getOffset(el) {
 
 
 // Game constructor:
-var Game = function(viewportEl) {
-	var cs = getComputedStyle(viewportEl);
-
-	// Starting values:
-	this.score = 0;
-	this.finished = false;
-	this.player = {};
-	this.step = 2;
-
-	// Viewport element & dimensions:
-	this.viewport = {
-		el: viewportEl,
-		width:  parseInt(cs.width,  10),
-		height: parseInt(cs.height, 10)
-	};
-
-	// Grab necessary game elements:
-	this.solidEls  = qsa('.solid',  viewportEl);
-	this.coinEls   = qsa('.coin',   viewportEl);
-	this.scoreEls  = qsa('.score',  viewportEl);
-	this.finishI  =  [].indexOf.call(this.solidEls, qs(".finish", viewportEl));
-	this.player.el =  qs(".player", viewportEl);
-	
-	// Cache positions of solids:
-	this.solids = [].map.call(this.solidEls, getOffset);
-	
-	// Cache coin positions:
-	this.coins = [].map.call(this.coinEls, getOffset);
-
-	// Cache player position:
-	this.player.pos = getOffset(this.player.el);
+var Game = function(options) {
+	// options will override the following defaults if set
+	var offset = extend(options, extend({
+		// Initial game state defaults
+		score: 0,
+		finished: false,
+		player: {},
+		step: 2
+	}, this));
 
 	// Setup interval. Delay controlls tickrate:
 	this.frameRefresher = createInterval(function() {
@@ -126,12 +104,7 @@ Game.prototype.getNewPlayerPosition = (function() {
 
 	return function() {
 		var moved = false;
-		var offset = {
-			top: this.player.pos.top,
-			left: this.player.pos.left,
-			bottom: this.player.pos.bottom,
-			right: this.player.pos.right
-		};
+		var offset = extend(this.player.pos, {});
 
 		if (!(keys.up && keys.down)) {
 			if      (keys.up)    { offset.top -= this.step; offset.bottom -= this.step; moved = true; }
@@ -195,4 +168,39 @@ Game.prototype.movTick = function() {
 
 
 // Create a game:
-var game = new Game(qs(".game"));
+var game = (function() {
+	// Viewport element & style:
+	var viewportEl = qs(".game");
+	var cs = getComputedStyle(viewportEl);
+
+	// Grab necessary game elements:
+	var solidEls  = qsa('.solid',  viewportEl);
+	var coinEls   = qsa('.coin',   viewportEl);
+	var playerEl =  qs(".player", viewportEl);
+
+	// Create game passing initial state
+	return new Game({
+		viewport: {
+			width:  parseInt(cs.width,  10),
+			height: parseInt(cs.height, 10)
+		},
+
+		// Positions of solids:
+		solids: [].map.call(solidEls, getOffset),
+
+		// Coins and their positions:
+		coinEls: coinEls,
+		coins: [].map.call(coinEls, getOffset),
+
+		// Player and their position:
+		player: {
+			el: playerEl,
+			pos: getOffset(playerEl)
+		},
+
+		scoreEls: qsa('.score',  viewportEl),
+
+		// index of finish line among the solids
+		finishI: [].indexOf.call(solidEls, qs(".finish", viewportEl))
+	});
+})();
