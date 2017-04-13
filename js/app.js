@@ -5,13 +5,9 @@ var game = (function() {
 	var cs = getComputedStyle(viewportEl);
 
 	// Grab necessary game elements:
-	var playerEl =  qs(".player", viewportEl);
-	var solidEls  = [].slice.call(qsa('.solid',  viewportEl));
-	var scoreEls = [].slice.call(qsa('.score',  viewportEl));
+	var playerEl  = qs(".player", viewportEl);
+	var scoreEls  = [].slice.call(qsa('.score',  viewportEl));
 	var coinEls   = [].slice.call(qsa('.coin',   viewportEl));
-	var solids = [].map.call(solidEls, getOffset);
-
-	var finishI = [].indexOf.call(solidEls, qs(".finish", viewportEl));
 
 	// Get element position:
 	function getOffset(el) {
@@ -42,7 +38,7 @@ var game = (function() {
 		},
 
 		// Positions of solids:
-		solids: solids,
+		solids: [].map.call(qsa('.solid',  viewportEl), getOffset),
 
 		touchables: {
 			coin: {
@@ -55,7 +51,7 @@ var game = (function() {
 				}
 			},
 			finish: {
-				positions: [solids[finishI]],
+				positions: getOffset(qs(".finish", viewportEl)),
 				onTouch: function() {
 					if (this.finished) return;
 					this.setScore('add', 250);
