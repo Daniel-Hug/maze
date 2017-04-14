@@ -28,12 +28,17 @@ var game = (function() {
 			height: parseInt(cs.height, 10)
 		},
 
-		// Player position and move function:
-		player: {
-			pos: getOffset(playerEl),
-			move: function(sidePositions) {
-				playerEl.style.left = sidePositions.left + 'px';
-				playerEl.style.top  = sidePositions.top + 'px';
+		moveables: {
+			player: {
+				// Player position and move function:
+				pos: getOffset(playerEl),
+				move: function(sidePositions) {
+					playerEl.style.left = sidePositions.left + 'px';
+					playerEl.style.top  = sidePositions.top + 'px';
+				},
+				moving: false,
+				direction: 0, // 0 degrees is right, 90 degrees is up
+				pixelsPerSecond: 200 // speed
 			}
 		},
 
@@ -51,7 +56,7 @@ var game = (function() {
 				}
 			},
 			finish: {
-				positions: getOffset(qs(".finish", viewportEl)),
+				positions: [getOffset(qs(".finish", viewportEl))],
 				onTouch: function() {
 					if (this.finished) return;
 					this.setScore('add', 250);

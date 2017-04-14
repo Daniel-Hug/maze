@@ -2,25 +2,91 @@
 var Game = function(options) {
 	// options will override the following defaults if set
 	var offset = extend(options, extend({
-		player: {
+		moveables: { player: {
 			pos: {
 				top: 0,
 				left: 0,
 				bottom: 24,
 				right: 24
 			}
-		},
-		step: 2
+		}},
+		fps: 100
 	}, this));
 
-	// Setup interval. Delay controlls tickrate:
+	// start listening to user events
+	this.init();
+
+	// Setup interval. Delay controlls frame rate:
 	this.frameRefresher = createInterval(function() {
 		this.movTick();
-	}, 10, this);
+	}, 1000 / this.fps, this);
 
 	this.frameRefresher.start();
 };
 
+// Update player direction and speed on keypress
+Game.prototype.init = (function() {
+	// Which keys are pressed:
+	var keys = {
+		left: false,
+		right: false,
+		up: false,
+		down: false
+	};
+
+	var keyCodeMap = {
+		37: 'left',
+		38: 'up',
+		39: 'right',
+		40: 'down'
+	};
+
+	function updatePlayerVector() {
+		// get new direction
+		var deltaX = 0;
+		var deltaY = 0;
+		if (keys.up)    { deltaY -= 1; }
+		if (keys.down)  { deltaY += 1; }
+		if (keys.left)  { deltaX -= 1; }
+		if (keys.right) { deltaX += 1; }
+
+		// stop moving if there's no position change
+		var player = this.moveables.player;
+		player.moving = !!(deltaY || deltaX);
+
+		if (player.moving) {
+			player.direction = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+		}
+	}
+
+	return function() {
+		var updateVector = updatePlayerVector.bind(this);
+
+		document.body.addEventListener('keydown', function(event) {
+			// update player vector if an arrow key was pressed
+			if (Object.keys(keyCodeMap).some(function(keyCode) {
+				if (event.keyCode === +keyCode) {
+					var key = keyCodeMap[keyCode];
+					if (keys[key] === true) return;
+					keys[key] = true;
+					return true;
+				}
+			})) updateVector();
+		});
+
+		document.body.addEventListener('keyup', function(e) {
+			// update player vector if an arrow key was released
+			if (Object.keys(keyCodeMap).some(function(keyCode) {
+				if (event.keyCode === +keyCode) {
+					var key = keyCodeMap[keyCode];
+					if (keys[key] === false) return;
+					keys[key] = false;
+					return true;
+				}
+			})) updateVector();
+		});
+	};
+})();
 
 // Checks if an element is inside its viewport:
 Game.prototype.insideGameArea = function(offset) {
@@ -54,51 +120,59 @@ Game.prototype.touches = function(a, b) {
 	return true;
 };
 
-Game.prototype.getNewPlayerPosition = (function() {
-	// Which keys are pressed:
-	var keys = {
-		left: false,
-		right: false,
-		up: false,
-		down: false
-	};
+Game.prototype.getNewPosition = function(moveable) {
+	if (!moveable.moving) return null;
 
-	var keyCodeMap = {
-		37: 'left',
-		38: 'up',
-		39: 'right',
-		40: 'down'
-	};
+	// get player speed in "pixels per frame" by dividing their speed in "pixels per second" by the game fps
+	var stepRadius = moveable.pixelsPerSecond / this.fps;
+	var stepAngle = moveable.direction / 180 * Math.PI;
+	var deltaX = stepRadius * Math.cos(stepAngle);
+	var deltaY = stepRadius * Math.sin(stepAngle);
 
-	// Keydown listener
-	document.body.addEventListener('keydown', function(event) {
-		Object.keys(keyCodeMap).forEach(function(keyCode) {
-			if (event.keyCode === +keyCode) keys[keyCodeMap[keyCode]] = true;
-		});
-	});
+	function removeMagnitude(num) {
+		return num > 0 ? 1 : (num < 0 ? -1 : 0);
+	}
 
-	// Keyup listener
-	document.body.addEventListener('keyup', function(e) {
-		Object.keys(keyCodeMap).forEach(function(keyCode) {
-			if (event.keyCode === +keyCode) keys[keyCodeMap[keyCode]] = false;
-		});
-	});
+	var xIncrement;
+	var yIncrement;
+	var numIterations = 0;
+	if (Math.abs(deltaX) > Math.abs(deltaY)) {
+		xIncrement = removeMagnitude(deltaX);
+		yIncrement = xIncrement / deltaX * deltaY;
+		numIterations = deltaX / xIncrement;
+	} else {
+		yIncrement = removeMagnitude(deltaY);
+		xIncrement = yIncrement / deltaY * deltaX;
+		numIterations = deltaY / yIncrement;
+	}
 
-	return function() {
-		var moved = false;
-		var offset = extend(this.player.pos, {});
-
-		if (!(keys.up && keys.down)) {
-			if      (keys.up)    { offset.top -= this.step; offset.bottom -= this.step; moved = true; }
-			else if (keys.down)  { offset.top += this.step; offset.bottom += this.step; moved = true; }
+	// get farthest valid step within deltaX, deltaY:
+	var validStep = moveable.pos;
+	var stepped = false;
+	for (var i = 0; i < numIterations; i++) {
+		var nextStep = {
+			top: validStep.top + yIncrement,
+			left: validStep.left + xIncrement,
+			bottom: validStep.bottom + yIncrement,
+			right: validStep.right + xIncrement
+		};
+		if (this.isValidPlayerPosition(nextStep)) {
+			validStep = nextStep;
+			stepped = true;
+		} else {
+			Object.keys(nextStep).forEach(function(key) {
+				nextStep[key] = Math.floor(nextStep[key]);
+			});
+			if (this.isValidPlayerPosition(nextStep)) {
+				validStep = nextStep;
+				stepped = true;
+			}
+			break;
 		}
-		if (!(keys.left && keys.right)) {
-			if      (keys.left)  { offset.left -= this.step; offset.right -= this.step; moved = true; }
-			else if (keys.right) { offset.left += this.step; offset.right += this.step; moved = true; }
-		}
-		return moved ? offset : null;
-	};
-})();
+	}
+
+	return stepped ? validStep : null;
+};
 
 Game.prototype.isValidPlayerPosition = function(sidePositions) {
 	// Ensure move is inside the game area:
@@ -114,14 +188,10 @@ Game.prototype.isValidPlayerPosition = function(sidePositions) {
 
 // Move one pixel for each direction and check if move is valid.
 Game.prototype.movTick = function() {
-	var t = this;
-
 	// ensure player position changed
-	var newPos = this.getNewPlayerPosition();
+	var player = this.moveables.player;
+	var newPos = this.getNewPosition(player);
 	if (!newPos) return;
-
-	// ensure valid player position
-	if (!this.isValidPlayerPosition(newPos)) return;
 
 	// Touchable collisions:
 	Object.keys(this.touchables).forEach(function(name) {
@@ -132,9 +202,10 @@ Game.prototype.movTick = function() {
 				touchable.onTouch.call(this, positions[i], i);
 			}
 		}
-	}, t);
+	}, this);
 
 	// update player position
-	this.player.move.call(this, newPos);
-	this.player.pos = newPos;
+	player.move.call(this, newPos);
+	player.pos = newPos;
+	console.log(player.pos);
 };
